@@ -1,0 +1,351 @@
+:root {
+  --bg: #f6f7f6;
+  --surface: #ffffff;
+  --surface-2: #f0f2f1;
+  --border: #e2e6e3;
+  --text: #152420;
+  --text-soft: #5c6b64;
+  --text-faint: #8b978f;
+  --green: #0e4a38;
+  --green-strong: #0a3a2b;
+  --green-soft: #e4f0ea;
+  --green-mid: #1e7a5a;
+  --alert: #b5452f;
+  --alert-soft: #fbe9e5;
+  --ok: #1e7a46;
+  --ok-soft: #e6f3ea;
+  --shadow: 0 1px 2px rgba(15, 30, 25, 0.04), 0 4px 14px rgba(15, 30, 25, 0.05);
+}
+
+.stApp {
+  background: var(--bg);
+  color: var(--text);
+}
+
+[data-testid="stSidebar"] {
+  background: var(--green-strong);
+  min-width: 246px;
+  overflow: hidden;
+  transition: width 240ms ease, min-width 240ms ease, opacity 180ms ease;
+}
+
+/* Let Streamlit remove the sidebar column completely when it is collapsed. */
+[data-testid="stSidebar"][aria-expanded="false"] {
+  display: block !important;
+  min-width: 0 !important;
+  width: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+[data-testid="stSidebar"][aria-expanded="false"] + div {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  transition: width 240ms ease, flex-basis 240ms ease;
+}
+
+[data-testid="stSidebar"][aria-expanded="false"] + div [data-testid="stMainBlockContainer"] {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding-left: 3rem !important;
+  padding-right: 3rem !important;
+  transition: max-width 240ms ease, padding 240ms ease;
+}
+
+[data-testid="stSidebar"] + div [data-testid="stMainBlockContainer"] {
+  transition: max-width 240ms ease, padding 240ms ease;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[data-testid="stMainBlockContainer"] {
+  animation: page-enter 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stSidebar"],
+  [data-testid="stSidebar"] + div,
+  [data-testid="stMainBlockContainer"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+[data-testid="stSidebar"] * {
+  color: #edf4f0;
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
+  color: #edf4f0;
+}
+
+[data-testid="stSidebar"] .stButton > button {
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: rgba(237, 244, 240, 0.72);
+  font-size: 0.88rem;
+  font-weight: 500;
+  justify-content: flex-start !important;
+  min-height: 40px;
+  padding: 0.55rem 0.75rem;
+  text-align: left !important;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+[data-testid="stSidebar"] .stButton > button > div {
+  justify-content: flex-start !important;
+  width: 100%;
+}
+
+[data-testid="stSidebar"] .stButton > button [data-testid="stMarkdownContainer"] {
+  text-align: left !important;
+}
+
+[data-testid="stSidebar"] .stButton > button:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border: 0;
+  color: #fff;
+  transform: translateX(2px);
+}
+
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+  background: var(--green-mid);
+  color: #08221a;
+  font-weight: 600;
+}
+
+[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+  background: var(--green-mid);
+  color: #08221a;
+  transform: translateX(0);
+}
+
+[data-testid="stSidebar"] [data-testid="stToggle"] {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 1rem;
+}
+
+[data-testid="stSidebar"] [data-testid="stToggle"] [data-baseweb="checkbox"] {
+  background: rgba(255, 255, 255, 0.18);
+  border: 0;
+  border-radius: 20px;
+  height: 21px;
+  width: 38px;
+}
+
+[data-testid="stSidebar"] [data-testid="stToggle"] [data-baseweb="checkbox"] > div {
+  background: #fff;
+  height: 16px;
+  margin: 2.5px;
+  width: 16px;
+}
+
+[data-testid="stSidebar"] [data-testid="stToggle"] input:checked + [data-baseweb="checkbox"] {
+  background: var(--green-mid);
+}
+
+.brand-block {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.25rem 0.25rem 0.9rem;
+}
+
+.brand-mark {
+  align-items: center;
+  background: var(--green-mid);
+  border-radius: 8px;
+  color: #08221a;
+  display: flex;
+  flex: 0 0 34px;
+  height: 34px;
+  justify-content: center;
+}
+
+.brand-mark svg {
+  height: 19px;
+  width: 19px;
+}
+
+.brand-name {
+  color: #edf4f0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.sidebar-spacer {
+  flex: 1 1 auto;
+  min-height: 12rem;
+}
+
+h1, h2, h3, h4, p, label {
+  font-family: "Inter", sans-serif;
+}
+
+h1 {
+  font-size: 1.7rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+}
+
+.app-subtitle {
+  color: var(--text-soft);
+  margin-top: -0.7rem;
+  margin-bottom: 1.8rem;
+}
+
+.hero-card, .metric-card, .content-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+
+.hero-card {
+  margin-bottom: 1.5rem;
+}
+
+.models-strip {
+  margin-top: 1rem;
+}
+
+.stAppViewContainer [data-testid="stMainBlockContainer"] {
+  max-width: 1180px;
+  padding: 2.25rem 2.75rem 3.75rem;
+}
+
+.hero-card p, .helper-text {
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.metric-label {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.metric-value {
+  color: var(--text);
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin-top: 0.35rem;
+}
+
+.metric-value.muted {
+  color: var(--text-faint);
+  font-size: 1.25rem;
+}
+
+.chip {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-soft);
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0.2rem 0.25rem 0 0;
+  padding: 0.38rem 0.7rem;
+}
+
+.step-card, .classification-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  min-height: 145px;
+  padding: 1rem;
+}
+
+.step-number {
+  align-items: center;
+  background: var(--green);
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 700;
+  height: 25px;
+  justify-content: center;
+  margin-bottom: 0.65rem;
+  width: 25px;
+}
+
+.step-card h4, .classification-card h4 {
+  font-size: 0.92rem;
+  margin: 0 0 0.4rem;
+}
+
+.step-card p, .classification-card p {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.section-label {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 1.7rem 0 0.8rem;
+}
+
+.status-ok {
+  background: var(--ok-soft);
+  border-radius: 8px;
+  color: var(--ok);
+  font-size: 0.85rem;
+  margin-top: 0.45rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.status-alert {
+  background: var(--alert-soft);
+  border-radius: 8px;
+  color: var(--alert);
+  font-size: 0.85rem;
+  margin-top: 0.45rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.disclaimer {
+  background: #fbf1de;
+  border-radius: 8px;
+  color: #b6791e;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  padding: 0.8rem 1rem;
+}
+
+[data-testid="stMetric"] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+@media (max-width: 800px) {
+  h1 { font-size: 1.45rem !important; }
+  .hero-card, .content-card { padding: 1rem; }
+  .stAppViewContainer [data-testid="stMainBlockContainer"] { padding: 1.25rem 1rem 2rem; }
+}

@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Sistema de Detección de Fraude Contable — Prototipo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F7F6;
+    --surface:#FFFFFF;
+    --surface-2:#F0F2F1;
+    --border:#E2E6E3;
+    --text:#152420;
+    --text-soft:#5C6B64;
+    --text-faint:#8B978F;
+    --green:#0E4A38;
+    --green-strong:#0A3A2B;
+    --green-soft:#E4F0EA;
+    --green-mid:#1E7A5A;
+    --alert:#B5452F;
+    --alert-soft:#FBE9E5;
+    --warn:#B6791E;
+    --warn-soft:#FBF1DE;
+    --ok:#1E7A46;
+    --ok-soft:#E6F3EA;
+    --shadow: 0 1px 2px rgba(15,30,25,0.04), 0 4px 14px rgba(15,30,25,0.05);
+    --radius: 10px;
+    --sidebar-w: 246px;
+  }
+  html.dark{
+    --bg:#121815;
+    --surface:#1A211D;
+    --surface-2:#212925;
+    --border:#2B342F;
+    --text:#EDEFED;
+    --text-soft:#A6B0AA;
+    --text-faint:#79837D;
+    --green:#2E9C6D;
+    --green-strong:#1E7A54;
+    --green-soft:#1B2C24;
+    --green-mid:#3FB57F;
+    --alert:#E07059;
+    --alert-soft:#2E1E1B;
+    --warn:#E0B15A;
+    --warn-soft:#2E2718;
+    --ok:#5FCB8C;
+    --ok-soft:#17281F;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 18px rgba(0,0,0,0.35);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);transition:background .25s,color .25s;}
+  a{color:inherit;}
+  .app{display:flex;min-height:100vh;}
+
+  /* ---------- SIDEBAR ---------- */
+  .sidebar{
+    width:var(--sidebar-w); min-width:var(--sidebar-w);
+    background:var(--green-strong);
+    color:#EDF4F0;
+    display:flex; flex-direction:column;
+    padding:22px 16px;
+    position:sticky; top:0; height:100vh;
+  }
+  html.dark .sidebar{background:#0E1512;}
+  .brand{display:flex; align-items:center; gap:10px; padding:4px 8px 22px 8px; border-bottom:1px solid rgba(255,255,255,0.12); margin-bottom:16px;}
+  .brand-mark{width:34px;height:34px;border-radius:8px;background:var(--green-mid);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .brand-mark svg{width:19px;height:19px;stroke:#0A2A20;}
+  .brand-name{font-size:13.5px; font-weight:700; line-height:1.25; letter-spacing:.1px;}
+  .nav{display:flex; flex-direction:column; gap:3px; flex:1;}
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    padding:10px 12px; border-radius:8px; cursor:pointer;
+    font-size:14px; font-weight:500; color:rgba(237,244,240,0.72);
+    border:none; background:transparent; text-align:left; width:100%;
+  }
+  .nav-item svg{width:18px;height:18px; flex-shrink:0; stroke:currentColor;}
+  .nav-item:hover{background:rgba(255,255,255,0.06); color:#fff;}
+  .nav-item.active{background:var(--green-mid); color:#08221A; font-weight:600;}
+  .sidebar-foot{border-top:1px solid rgba(255,255,255,0.12); padding-top:14px; margin-top:10px; display:flex; flex-direction:column; gap:12px;}
+  .theme-row{display:flex; align-items:center; justify-content:space-between; padding:2px 10px;}
+  .theme-label{font-size:12.5px; color:rgba(237,244,240,0.72); display:flex; align-items:center; gap:7px;}
+  .theme-label svg{width:14px;height:14px;}
+  .switch{width:38px; height:21px; border-radius:20px; background:rgba(255,255,255,0.18); position:relative; cursor:pointer; flex-shrink:0;}
+  .switch::after{content:'';position:absolute; width:16px; height:16px; border-radius:50%; background:#fff; top:2.5px; left:2.5px; transition:left .18s ease;}
+  .switch.on{background:var(--green-mid);}
+  .switch.on::after{left:19.5px;}
+  .version-row{display:flex; align-items:center; gap:8px; padding:0 10px;}
+  .version-text{font-size:11.5px; color:rgba(237,244,240,0.55);}
+  .proto-badge{font-size:10px; font-weight:700; background:rgba(255,255,255,0.14); color:#EDF4F0; padding:2px 7px; border-radius:20px; letter-spacing:.2px;}
+
+  /* ---------- MAIN ---------- */
+  .main{flex:1; min-width:0; padding:36px 44px 60px 44px;}
+  .page{display:none; max-width:1180px; margin:0 auto;}
+  .page.active{display:block;}
+  h1.page-title{font-size:25px; font-weight:700; margin:0 0 4px 0; letter-spacing:-.2px;}
+  p.page-sub{font-size:14.5px; color:var(--text-soft); margin:0 0 30px 0; max-width:640px; line-height:1.5;}
+
+  /* buttons */
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; justify-content:center;
+    font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;
+    border-radius:8px; padding:11px 20px; border:1px solid transparent;
+    transition:filter .15s, background .15s;
+  }
+  .btn:active{filter:brightness(0.94);}
+  .btn-primary{background:var(--green); color:#fff;}
+  .btn-primary:hover{background:var(--green-strong);}
+  .btn-primary:disabled{background:var(--text-faint); cursor:not-allowed;}
+  .btn-secondary{background:transparent; color:var(--green); border-color:var(--green);}
+  html.dark .btn-secondary{color:var(--green-mid); border-color:var(--green-mid);}
+  .btn-secondary:hover{background:var(--green-soft);}
+  .btn-ghost{background:var(--surface-2); color:var(--text); border-color:var(--border);}
+  .btn-ghost:hover{background:var(--border);}
+  .btn-lg{padding:15px 28px; font-size:15px; border-radius:9px;}
+  .btn svg{width:16px;height:16px;stroke:currentColor;}
+
+  /* cards */
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);}
+  .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:34px;}
+  .kpi{padding:20px 20px 18px 20px;}
+  .kpi-label{font-size:12.5px; color:var(--text-soft); font-weight:600; margin-bottom:10px;}
+  .kpi-value{font-size:26px; font-weight:700; letter-spacing:-.4px;}
+  .kpi-value.faint{color:var(--text-faint); font-weight:600; font-size:20px;}
+  .kpi-sub{font-size:12px; color:var(--text-faint); margin-top:4px;}
+
+  .section-block{margin-bottom:36px;}
+  .section-head{display:flex; align-items:baseline; gap:9px; margin-bottom:14px;}
+  .section-head .num{width:24px;height:24px;border-radius:50%; background:var(--green-soft); color:var(--green); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  html.dark .section-head .num{color:var(--green-mid);}
+  .section-head h3{font-size:16px; font-weight:700; margin:0;}
+
+  /* home */
+  .hero-card{padding:38px 40px; margin-bottom:32px;}
+  .hero-card h1{font-size:26px; margin:0 0 10px 0; font-weight:800; letter-spacing:-.4px;}
+  .hero-card p{font-size:14.5px; color:var(--text-soft); max-width:560px; line-height:1.55; margin:0 0 22px 0;}
+  .models-strip{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
+  .model-chip{font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-soft);}
+
+  /* dropzone */
+  .dropzone{
+    border:1.6px dashed var(--border); border-radius:var(--radius); background:var(--surface);
+    padding:38px 20px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--green-mid); background:var(--green-soft);}
+  .dropzone svg{width:30px;height:30px; stroke:var(--green-mid); margin-bottom:10px;}
+  .dropzone .dz-title{font-size:14.5px; font-weight:600; margin-bottom:4px;}
+  .dropzone .dz-sub{font-size:12.5px; color:var(--text-faint);}
+
+  .status-list{margin-top:14px; display:flex; flex-direction:column; gap:8px;}
+  .status-item{display:flex; align-items:center; gap:9px; font-size:13.5px; padding:10px 14px; border-radius:8px; background:var(--ok-soft); color:var(--ok); font-weight:500;}
+  .status-item.err{background:var(--warn-soft); color:var(--warn);}
+  .status-item svg{width:16px;height:16px; flex-shrink:0;}
+
+  select.field, input.field{
+    width:100%; font-family:inherit; font-size:14px; padding:11px 14px; border-radius:8px;
+    border:1px solid var(--border); background:var(--surface); color:var(--text); appearance:none;
+  }
+  .select-wrap{position:relative; max-width:340px;}
+  .select-wrap svg{position:absolute; right:13px; top:50%; transform:translateY(-50%); width:15px;height:15px; stroke:var(--text-faint); pointer-events:none;}
+  .field-hint{font-size:12.5px; color:var(--text-faint); margin-top:8px;}
+
+  .progress-wrap{margin-top:16px; display:none;}
+  .progress-wrap.show{display:block;}
+  .progress-label{font-size:13px; color:var(--text-soft); margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+  .progress-track{height:8px; border-radius:20px; background:var(--surface-2); overflow:hidden;}
+  .progress-bar{height:100%; width:0%; background:var(--green-mid); border-radius:20px; transition:width .12s linear;}
+
+  .spin{width:14px;height:14px; border:2px solid var(--border); border-top-color:var(--green-mid); border-radius:50%; animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .results-wrap{display:none; margin-top:6px;}
+  .results-wrap.show{display:block; animation:fadein .35s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .divider{height:1px; background:var(--border); margin:36px 0;}
+
+  /* chart */
+  .chart-card{padding:24px 26px; margin-bottom:28px;}
+  .chart-title{font-size:14.5px; font-weight:700; margin-bottom:18px;}
+  .bar-row{display:grid; grid-template-columns:190px 1fr 84px; align-items:center; gap:12px; margin-bottom:13px;}
+  .bar-row .lbl{font-size:13px; color:var(--text-soft); font-weight:500;}
+  .bar-track{height:16px; background:var(--surface-2); border-radius:20px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:20px;}
+  .bar-row .val{font-size:12.5px; color:var(--text-faint); text-align:right; font-variant-numeric:tabular-nums;}
+
+  /* table */
+  .table-toolbar{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center;}
+  .table-toolbar select, .table-toolbar input{width:auto; min-width:150px;}
+  .search-input-wrap{position:relative; flex:1; min-width:200px; max-width:280px;}
+  .search-input-wrap svg{position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px;height:15px; stroke:var(--text-faint);}
+  .search-input-wrap input{padding-left:36px;}
+
+  table.data-table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  table.data-table thead th{
+    text-align:left; font-size:11.5px; text-transform:none; color:var(--text-faint); font-weight:700;
+    padding:11px 14px; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap;
+  }
+  table.data-table thead th:hover{color:var(--text-soft);}
+  table.data-table tbody td{padding:12px 14px; border-bottom:1px solid var(--border); color:var(--text);}
+  table.data-table tbody tr:hover{background:var(--surface-2);}
+  .badge{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:4px 10px; border-radius:20px;}
+  .badge.normal{background:var(--ok-soft); color:var(--ok);}
+  .badge.alerta{background:var(--alert-soft); color:var(--alert);}
+  .link-btn{background:none; border:none; color:var(--green); font-weight:600; font-size:13px; cursor:pointer; font-family:inherit; padding:0;}
+  html.dark .link-btn{color:var(--green-mid);}
+  .link-btn:hover{text-decoration:underline;}
+  .table-foot{display:flex; justify-content:space-between; align-items:center; margin-top:14px; font-size:12.5px; color:var(--text-faint);}
+  .pager{display:flex; gap:6px;}
+  .pager button{width:28px;height:28px; border-radius:6px; border:1px solid var(--border); background:var(--surface); cursor:pointer; font-size:12.5px; color:var(--text-soft);}
+  .pager button.active{background:var(--green); color:#fff; border-color:var(--green);}
+  .pager button:disabled{opacity:.4; cursor:not-allowed;}
+
+  .warn-note{display:flex; gap:10px; align-items:flex-start; background:var(--warn-soft); color:var(--warn); border-radius:8px; padding:13px 16px; font-size:12.5px; line-height:1.5; margin-top:8px;}
+  .warn-note svg{width:16px;height:16px; flex-shrink:0; margin-top:1px;}
+
+  /* guide */
+  .steps-flow{display:flex; align-items:stretch; gap:0; margin-bottom:8px; flex-wrap:wrap;}
+  .step-box{flex:1; min-width:150px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 16px; box-shadow:var(--shadow);}
+  .step-num{width:26px;height:26px; border-radius:50%; background:var(--green); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:12px;}
+  .step-box svg{width:20px;height:20px; stroke:var(--green-mid); margin-bottom:8px;}
+  .step-box h4{font-size:13.5px; margin:0 0 6px 0; font-weight:700;}
+  .step-box p{font-size:12px; color:var(--text-soft); margin:0; line-height:1.45;}
+  .step-arrow{display:flex; align-items:center; justify-content:center; width:34px; flex-shrink:0; color:var(--text-faint);}
+  .step-arrow svg{width:18px;height:18px;}
+
+  .accordion{border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+  .accordion-head{display:flex; align-items:center; justify-content:space-between; padding:15px 18px; cursor:pointer; font-size:14px; font-weight:600;}
+  .accordion-head svg{width:16px;height:16px; stroke:var(--text-soft); transition:transform .15s;}
+  .accordion.open .accordion-head svg{transform:rotate(180deg);}
+  .accordion-body{max-height:0; overflow:hidden; transition:max-height .2s ease;}
+  .accordion.open .accordion-body{max-height:600px;}
+  .var-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; padding:4px 18px 18px 18px;}
+  .var-chip{font-size:12.5px; background:var(--surface-2); border:1px solid var(--border); padding:8px 11px; border-radius:7px; color:var(--text-soft);}
+
+  .class-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  .class-card{padding:16px 17px; display:flex; flex-direction:column; gap:8px;}
+  .class-dot{width:9px;height:9px; border-radius:50%;}
+  .class-card h4{font-size:13.5px; margin:0; font-weight:700;}
+  .class-card p{font-size:12px; color:var(--text-soft); margin:0; line-height:1.4;}
+
+  /* config */
+  .config-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  .config-card{padding:22px 24px;}
+  .config-card h3{font-size:14.5px; margin:0 0 4px 0; font-weight:700;}
+  .config-card .desc{font-size:12.5px; color:var(--text-faint); margin:0 0 16px 0;}
+  .radio-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .radio-pill{border:1px solid var(--border); border-radius:8px; padding:9px 15px; font-size:13px; font-weight:500; cursor:pointer; color:var(--text-soft);}
+  .radio-pill.sel{border-color:var(--green); background:var(--green-soft); color:var(--green); font-weight:700;}
+  html.dark .radio-pill.sel{color:var(--green-mid);}
+  .adv-tag{font-size:10.5px; font-weight:700; background:var(--surface-2); color:var(--text-faint); padding:3px 8px; border-radius:20px; margin-left:8px;}
+  .info-row{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px;}
+  .info-row:last-child{border-bottom:none;}
+  .info-row span:first-child{color:var(--text-faint);}
+  .info-row span:last-child{font-weight:600;}
+
+  /* modal */
+  .overlay{position:fixed; inset:0; background:rgba(10,20,16,0.42); display:none; align-items:stretch; justify-content:flex-end; z-index:50;}
+  .overlay.show{display:flex;}
+  .modal-panel{width:420px; max-width:92vw; background:var(--surface); height:100vh; padding:30px 28px; overflow-y:auto; box-shadow:-8px 0 30px rgba(0,0,0,0.15); animation:slidein .22s ease;}
+  @keyframes slidein{from{transform:translateX(24px); opacity:.4;} to{transform:translateX(0); opacity:1;}}
+  .modal-close{background:var(--surface-2); border:none; width:30px; height:30px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; float:right;}
+  .modal-close svg{width:15px;height:15px; stroke:var(--text-soft);}
+  .modal-title{font-size:17px; font-weight:700; margin:6px 0 2px 0;}
+  .modal-sub{font-size:12.5px; color:var(--text-faint); margin-bottom:20px;}
+  .modal-field{margin-bottom:16px;}
+  .modal-field .k{font-size:11.5px; color:var(--text-faint); font-weight:600; margin-bottom:4px;}
+  .modal-field .v{font-size:14.5px; font-weight:600;}
+  .explain-box{background:var(--surface-2); border-radius:8px; padding:14px 16px; font-size:13px; line-height:1.55; color:var(--text-soft); margin:18px 0;}
+  .feat-row{display:grid; grid-template-columns:130px 1fr; gap:10px; align-items:center; margin-bottom:10px;}
+  .feat-row .fname{font-size:12px; color:var(--text-soft);}
+  .feat-track{height:9px; border-radius:20px; background:var(--surface-2); overflow:hidden;}
+  .feat-fill{height:100%; background:var(--green-mid); border-radius:20px;}
+  .tech-toggle{font-size:12.5px; color:var(--green); background:none; border:none; cursor:pointer; font-weight:600; padding:0; margin-top:6px; font-family:inherit;}
+  html.dark .tech-toggle{color:var(--green-mid);}
+  .tech-box{display:none; margin-top:10px; font-size:11.5px; color:var(--text-faint); background:var(--surface-2); padding:10px 12px; border-radius:7px; line-height:1.5;}
+  .tech-box.show{display:block;}
+
+  /* toast */
+  #toast{position:fixed; bottom:24px; right:24px; background:var(--green-strong); color:#fff; padding:13px 20px; border-radius:9px; font-size:13.5px; font-weight:500; box-shadow:var(--shadow); opacity:0; transform:translateY(8px); transition:all .2s; pointer-events:none; z-index:99;}
+  #toast.show{opacity:1; transform:translateY(0);}
+
+  @media (max-width:980px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .config-grid{grid-template-columns:1fr;}
+    .class-grid{grid-template-columns:repeat(2,1fr);}
+    .var-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M6 19V9l4-4 4 4v10"/><path d="M14 19v-6l4-3v9"/></svg>
+      </div>
+      <div class="brand-name">Sistema de Detección<br>de Fraude Contable</div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-page="inicio">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+        Inicio
+      </button>
+      <button class="nav-item" data-page="guia">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+        Guía de uso
+      </button>
+      <button class="nav-item" data-page="analizar">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M9.5 11h3M11 9.5v3"/></svg>
+        Analizar archivo
+      </button>
+      <button class="nav-item" data-page="config">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.4.66.73.85.3.18.65.27 1 .27H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        Configuración
+      </button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="theme-row">
+        <span class="theme-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          Modo oscuro
+        </span>
+        <div class="switch" id="themeSwitch" onclick="toggleTheme()"></div>
+      </div>
+      <div class="version-row">
+        <span class="version-text">Versión 1.0</span>
+        <span class="proto-badge">Prototipo</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- ============ PAGE: INICIO ============ -->
+    <section class="page active" id="page-inicio">
+      <div class="hero-card card">
+        <h1>Sistema de Detección de Posibles Fraudes Contables</h1>
+        <p>Herramienta de apoyo para el análisis de información contable mediante modelos de inteligencia artificial.</p>
+        <button class="btn btn-primary btn-lg" onclick="goPage('analizar')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          Analizar archivo contable
+        </button>
+        <div class="models-strip">
+          <span class="model-chip">Modelos disponibles: 4</span>
+          <span class="model-chip">LightGBM</span>
+          <span class="model-chip">Random Forest</span>
+          <span class="model-chip">XGBoost</span>
+          <span class="model-chip">Decision Tree</span>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="homeKpis">
+        <div class="card kpi">
+          <div class="kpi-label">Registros analizados</div>
+          <div class="kpi-value faint" id="kpiTotal">—</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-label">Registros normales</div>
+          <div class="kpi-value faint" id="kpiNormal">—</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-label">Alertas detectadas</div>
+          <div class="kpi-value faint" id="kpiAlertas">—</div>
+        </div>
+        <div class="card kpi">
+          <div class="kpi-label">Modelo utilizado</div>
+          <div class="kpi-value faint" id="kpiModelo">Sin análisis</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PAGE: GUÍA DE USO ============ -->
+    <section class="page" id="page-guia">
+      <h1 class="page-title">Guía de uso</h1>
+      <p class="page-sub">Sigue estos pasos para analizar tu información contable, sin necesidad de conocimientos técnicos.</p>
+
+      <div class="section-block">
+        <div class="steps-flow">
+          <div class="step-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            <div class="step-num">1</div>
+            <h4>Cargar CSV</h4>
+            <p>Sube el archivo contable en formato CSV desde tu computador.</p>
+          </div>
+          <div class="step-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+          <div class="step-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            <div class="step-num">2</div>
+            <h4>Validar información</h4>
+            <p>El sistema revisa que estén las 19 variables requeridas.</p>
+          </div>
+          <div class="step-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+          <div class="step-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m6.8 6.8-2.8-2.8"/><path d="M2 12h4"/><path d="m6.8 17.2-2.8 2.8"/><path d="M12 18v4"/><path d="m17.2 17.2 2.8 2.8"/><path d="M18 12h4"/><path d="m17.2 6.8 2.8-2.8"/></svg>
+            <div class="step-num">3</div>
+            <h4>Ejecutar modelo</h4>
+            <p>Elige uno de los cuatro modelos y ejecuta el análisis.</p>
+          </div>
+          <div class="step-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+          <div class="step-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <div class="step-num">4</div>
+            <h4>Revisar resultados</h4>
+            <p>Consulta las clasificaciones y revisa cada alerta en detalle.</p>
+          </div>
+          <div class="step-arrow"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+          <div class="step-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M20 21H4"/></svg>
+            <div class="step-num">5</div>
+            <h4>Descargar reporte</h4>
+            <p>Exporta los resultados para tu expediente de auditoría.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-head"><h3>¿Qué información debe contener el archivo?</h3></div>
+        <p class="page-sub" style="margin-bottom:12px;">El archivo debe contener las 19 variables contables requeridas por el modelo para poder clasificar cada registro.</p>
+        <div class="accordion" id="varsAccordion">
+          <div class="accordion-head" onclick="document.getElementById('varsAccordion').classList.toggle('open')">
+            Ver variables requeridas
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <div class="accordion-body">
+            <div class="var-grid" id="varGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-head"><h3>Clasificaciones que puede generar el sistema</h3></div>
+        <div class="class-grid">
+          <div class="card class-card"><span class="class-dot" style="background:var(--ok)"></span><h4>Normal</h4><p>El registro no presenta patrones inusuales.</p></div>
+          <div class="card class-card"><span class="class-dot" style="background:var(--alert)"></span><h4>Pitufeo</h4><p>Fraccionamiento de montos para evitar controles.</p></div>
+          <div class="card class-card"><span class="class-dot" style="background:var(--alert)"></span><h4>Redondeo de cifras</h4><p>Montos con patrones de redondeo poco habituales.</p></div>
+          <div class="card class-card"><span class="class-dot" style="background:var(--alert)"></span><h4>Fraude de nómina</h4><p>Irregularidades en pagos o empleados registrados.</p></div>
+          <div class="card class-card"><span class="class-dot" style="background:var(--alert)"></span><h4>Registro de pasivos como ingresos</h4><p>Reclasificación indebida de obligaciones.</p></div>
+          <div class="card class-card"><span class="class-dot" style="background:var(--alert)"></span><h4>Uso de cuentas inexistentes</h4><p>Movimientos en cuentas contables no válidas.</p></div>
+        </div>
+        <div class="warn-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          Las clasificaciones generadas por el modelo constituyen alertas para apoyar la revisión contable y no reemplazan el juicio profesional del contador o auditor.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PAGE: ANALIZAR ARCHIVO ============ -->
+    <section class="page" id="page-analizar">
+      <h1 class="page-title">Análisis de fraude contable</h1>
+      <p class="page-sub">Cargue la información contable y seleccione el modelo que desea utilizar.</p>
+
+      <div class="section-block">
+        <div class="section-head"><span class="num">1</span><h3>Cargar archivo</h3></div>
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M20 21H4a1 1 0 0 1-1-1v-5"/><path d="M20 21v-6"/></svg>
+          <div class="dz-title">Arrastre aquí su archivo CSV o haga clic para seleccionarlo.</div>
+          <div class="dz-sub">Formato admitido: .csv — tamaño máximo 200 MB</div>
+        </div>
+        <input type="file" id="fileInput" accept=".csv" style="display:none" onchange="handleFile()">
+
+        <div class="progress-wrap" id="uploadProgress">
+          <div class="progress-label"><span class="spin"></span> Validando archivo…</div>
+          <div class="progress-track"><div class="progress-bar" id="uploadBar"></div></div>
+        </div>
+
+        <div class="status-list" id="statusOk" style="display:none;">
+          <div class="status-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg> Archivo cargado correctamente</div>
+          <div class="status-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg> 19 variables requeridas encontradas</div>
+          <div class="status-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg> 422.704 registros disponibles para analizar</div>
+        </div>
+        <div class="status-list" id="statusErr" style="display:none;">
+          <div class="status-item err"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Faltan variables requeridas en el archivo.</div>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn btn-secondary" onclick="showToast('Detalle de validación: 19/19 variables encontradas, 0 columnas duplicadas, 0 filas vacías.')">Ver detalle de validación</button>
+          <button class="btn btn-ghost" style="margin-left:8px;" onclick="simulateError()">Simular archivo inválido</button>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-head"><span class="num">2</span><h3>Seleccionar modelo</h3></div>
+        <div class="select-wrap">
+          <select class="field" id="modelSelect">
+            <option>LightGBM</option>
+            <option>Random Forest</option>
+            <option>XGBoost</option>
+            <option>Decision Tree</option>
+          </select>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="field-hint">El modelo seleccionado analizará cada registro y asignará una clasificación.</div>
+      </div>
+
+      <div class="section-block">
+        <button class="btn btn-primary btn-lg" id="analyzeBtn" disabled onclick="runAnalysis()">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          ANALIZAR ARCHIVO
+        </button>
+        <div class="progress-wrap" id="analyzeProgress">
+          <div class="progress-label"><span class="spin"></span> Analizando registros…</div>
+          <div class="progress-track"><div class="progress-bar" id="analyzeBar"></div></div>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="results-wrap" id="resultsWrap">
+        <div class="divider"></div>
+        <h2 style="font-size:19px; font-weight:700; margin-bottom:18px;">Resultados del análisis</h2>
+
+        <div class="kpi-grid">
+          <div class="card kpi"><div class="kpi-label">Total analizado</div><div class="kpi-value">422.704</div></div>
+          <div class="card kpi"><div class="kpi-label">Registros normales</div><div class="kpi-value" style="color:var(--ok)">418.000</div></div>
+          <div class="card kpi"><div class="kpi-label">Alertas detectadas</div><div class="kpi-value" style="color:var(--alert)">4.704</div></div>
+          <div class="card kpi"><div class="kpi-label">Porcentaje de alertas</div><div class="kpi-value">1,11 %</div></div>
+        </div>
+
+        <div class="card chart-card">
+          <div class="chart-title">Distribución de las clasificaciones</div>
+          <div id="chartArea"></div>
+        </div>
+
+        <div class="card" style="padding:22px 24px 26px 24px; margin-bottom:28px;">
+          <div class="chart-title">Registros identificados</div>
+          <div class="table-toolbar">
+            <div class="select-wrap" style="max-width:190px;">
+              <select class="field" id="filterClass" onchange="renderTable()">
+                <option value="Todos">Clasificación: Todos</option>
+                <option value="Normal">Normal</option>
+                <option value="Pitufeo">Pitufeo</option>
+                <option value="Redondeo de cifras">Redondeo</option>
+                <option value="Fraude de nómina">Nómina</option>
+                <option value="Registro de pasivos como ingresos">Pasivos como ingresos</option>
+                <option value="Uso de cuentas inexistentes">Cuentas inexistentes</option>
+              </select>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+            <div class="select-wrap" style="max-width:150px;">
+              <select class="field" id="filterResult" onchange="renderTable()">
+                <option value="Todos">Resultado: Todos</option>
+                <option value="Normal">Normal</option>
+                <option value="Alerta">Alerta</option>
+              </select>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+            <div class="search-input-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input class="field" placeholder="Buscar registro" id="searchInput" oninput="renderTable()">
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th onclick="sortBy('id')">Registro</th>
+                <th onclick="sortBy('tipo')">Tipo de comprobante</th>
+                <th onclick="sortBy('clase')">Clasificación</th>
+                <th onclick="sortBy('resultado')">Resultado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+          <div class="table-foot">
+            <span id="tableCount">Mostrando registros</span>
+            <div class="pager" id="pager"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+          <button class="btn btn-secondary" onclick="showToast('Descarga simulada: resultados.csv (prototipo)')">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M20 21H4"/></svg>
+            Descargar resultados CSV
+          </button>
+          <button class="btn btn-secondary" onclick="showToast('Descarga simulada: reporte.pdf (prototipo)')">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+            Descargar reporte
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PAGE: CONFIGURACIÓN ============ -->
+    <section class="page" id="page-config">
+      <h1 class="page-title">Configuración</h1>
+      <p class="page-sub">Ajusta las preferencias del sistema.</p>
+
+      <div class="config-grid">
+        <div class="card config-card">
+          <h3>Modelo predeterminado</h3>
+          <p class="desc">Modelo que se selecciona automáticamente al iniciar un análisis.</p>
+          <div class="select-wrap">
+            <select class="field" id="defaultModel">
+              <option>LightGBM</option>
+              <option>Random Forest</option>
+              <option>XGBoost</option>
+              <option>Decision Tree</option>
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+
+        <div class="card config-card">
+          <h3>Preferencias de análisis</h3>
+          <p class="desc">Umbral de clasificación<span class="adv-tag">Función avanzada</span></p>
+          <input class="field" disabled value="Disponible próximamente" style="opacity:.55; cursor:not-allowed;">
+        </div>
+
+        <div class="card config-card">
+          <h3>Formato de descarga</h3>
+          <p class="desc">Formato utilizado al exportar resultados.</p>
+          <div class="select-wrap">
+            <select class="field" id="downloadFormat">
+              <option>CSV</option>
+              <option>Excel</option>
+              <option>Reporte</option>
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+
+        <div class="card config-card">
+          <h3>Apariencia</h3>
+          <p class="desc">Selecciona el tema visual de la aplicación.</p>
+          <div class="radio-row" id="appearanceRow">
+            <div class="radio-pill" data-mode="light" onclick="setAppearance('light')">Claro</div>
+            <div class="radio-pill" data-mode="dark" onclick="setAppearance('dark')">Oscuro</div>
+            <div class="radio-pill" data-mode="system" onclick="setAppearance('system')">Sistema</div>
+          </div>
+        </div>
+
+        <div class="card config-card">
+          <h3>Información del sistema</h3>
+          <div class="info-row"><span>Versión de la aplicación</span><span>1.0</span></div>
+          <div class="info-row"><span>Modelos disponibles</span><span>4</span></div>
+          <div class="info-row"><span>Estado</span><span>Prototipo / En desarrollo</span></div>
+        </div>
+
+        <div class="card config-card">
+          <h3>Restablecer</h3>
+          <p class="desc">Vuelve todas las preferencias a sus valores predeterminados.</p>
+          <button class="btn btn-ghost" onclick="resetConfig()">Restablecer configuración</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============ MODAL: DETALLE DE ALERTA ============ -->
+<div class="overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-panel">
+    <button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    <div class="modal-title">Registro analizado: <span id="mReg"></span></div>
+    <div class="modal-sub">Detalle de la clasificación generada por el modelo</div>
+
+    <div class="modal-field">
+      <div class="k">Clasificación del modelo</div>
+      <div class="v" id="mClass"></div>
+    </div>
+    <div class="modal-field">
+      <div class="k">Resultado</div>
+      <div class="v" id="mResult"></div>
+    </div>
+
+    <div class="explain-box" id="mExplain"></div>
+
+    <div style="font-size:12.5px; font-weight:700; margin-bottom:12px; color:var(--text-soft);">Variables relevantes para la clasificación</div>
+    <div id="mFeatures"></div>
+
+    <button class="tech-toggle" onclick="document.getElementById('techBox').classList.toggle('show')">Ver información técnica</button>
+    <div class="tech-box" id="techBox">
+      Modelo: <span id="mModel"></span>. La clasificación se basa en la importancia relativa de las variables contables del registro frente a patrones observados durante el entrenamiento del modelo.
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ---------------- STATE ---------------- */
+const state = { analyzed:false, model:'LightGBM' };
+
+/* ---------------- NAVIGATION ---------------- */
+function goPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.page===p));
+}
+document.querySelectorAll('.nav-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>goPage(btn.dataset.page));
+});
+
+/* ---------------- TOAST ---------------- */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+/* ---------------- THEME ---------------- */
+function toggleTheme(){
+  document.documentElement.classList.toggle('dark');
+  document.getElementById('themeSwitch').classList.toggle('on');
+  const isDark = document.documentElement.classList.contains('dark');
+  document.querySelectorAll('.radio-pill').forEach(p=>p.classList.remove('sel'));
+  const target = document.querySelector('.radio-pill[data-mode="'+(isDark?'dark':'light')+'"]');
+  if(target) target.classList.add('sel');
+}
+function setAppearance(mode){
+  document.querySelectorAll('.radio-pill').forEach(p=>p.classList.remove('sel'));
+  document.querySelector('.radio-pill[data-mode="'+mode+'"]').classList.add('sel');
+  const wantDark = mode==='dark';
+  const isDark = document.documentElement.classList.contains('dark');
+  if(mode!=='system' && wantDark!==isDark){
+    document.documentElement.classList.toggle('dark');
+    document.getElementById('themeSwitch').classList.toggle('on');
+  }
+  showToast('Apariencia actualizada: '+mode);
+}
+setAppearance('light');
+
+/* ---------------- 19 VARIABLES ---------------- */
+const variables = ["Monto de la transacción","Número de cuenta contable","Tipo de comprobante","Fecha de registro","Usuario que registra","Monto redondeado","Frecuencia de transacciones del usuario","Diferencia de horario de registro","Número de transacciones por día","Cuenta contable afectada","Centro de costo","Monto promedio histórico","Desviación respecto al monto habitual","Tipo de moneda","Código de empleado","Monto bruto","Monto neto","Impuesto aplicado","Estado de aprobación"];
+document.getElementById('varGrid').innerHTML = variables.map(v=>`<div class="var-chip">${v}</div>`).join('');
+
+/* ---------------- FILE UPLOAD ---------------- */
+const dropzone = document.getElementById('dropzone');
+['dragover','dragleave','drop'].forEach(evt=>{
+  dropzone.addEventListener(evt, e=>{
+    e.preventDefault();
+    if(evt==='dragover') dropzone.classList.add('drag');
+    else dropzone.classList.remove('drag');
+    if(evt==='drop') handleFile();
+  });
+});
+function handleFile(){
+  document.getElementById('statusErr').style.display='none';
+  document.getElementById('statusOk').style.display='none';
+  const pw = document.getElementById('uploadProgress');
+  const bar = document.getElementById('uploadBar');
+  pw.classList.add('show');
+  bar.style.width='0%';
+  setTimeout(()=>bar.style.width='100%', 30);
+  setTimeout(()=>{
+    pw.classList.remove('show');
+    document.getElementById('statusOk').style.display='flex';
+    document.getElementById('statusOk').style.flexDirection='column';
+    document.getElementById('analyzeBtn').disabled=false;
+  }, 750);
+}
+function simulateError(){
+  document.getElementById('statusOk').style.display='none';
+  document.getElementById('uploadProgress').classList.remove('show');
+  const e = document.getElementById('statusErr');
+  e.style.display='flex';
+  e.style.flexDirection='column';
+  document.getElementById('analyzeBtn').disabled=true;
+}
+
+/* ---------------- RUN ANALYSIS ---------------- */
+function runAnalysis(){
+  state.model = document.getElementById('modelSelect').value;
+  const pw = document.getElementById('analyzeProgress');
+  const bar = document.getElementById('analyzeBar');
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  pw.classList.add('show');
+  bar.style.width='0%';
+  setTimeout(()=>bar.style.width='100%', 30);
+  setTimeout(()=>{
+    pw.classList.remove('show');
+    btn.disabled = false;
+    state.analyzed = true;
+    document.getElementById('resultsWrap').classList.add('show');
+    renderChart();
+    renderTable();
+    document.getElementById('kpiTotal').textContent='422.704';
+    document.getElementById('kpiNormal').textContent='418.000';
+    document.getElementById('kpiAlertas').textContent='4.704';
+    document.getElementById('kpiModelo').textContent=state.model;
+    ['kpiTotal','kpiNormal','kpiAlertas','kpiModelo'].forEach(id=>document.getElementById(id).classList.remove('faint'));
+  }, 1400);
+}
+
+/* ---------------- CHART ---------------- */
+const chartData = [
+  {label:'Normal', value:418000, color:'var(--ok)'},
+  {label:'Pitufeo', value:1200, color:'var(--alert)'},
+  {label:'Redondeo de cifras', value:1500, color:'var(--alert)'},
+  {label:'Fraude de nómina', value:900, color:'var(--alert)'},
+  {label:'Registro de pasivos como ingresos', value:604, color:'var(--alert)'},
+  {label:'Uso de cuentas inexistentes', value:500, color:'var(--alert)'},
+];
+function renderChart(){
+  const max = Math.max(...chartData.map(d=>d.value));
+  document.getElementById('chartArea').innerHTML = chartData.map(d=>`
+    <div class="bar-row">
+      <div class="lbl">${d.label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(d.value/max*100).toFixed(1)}%; background:${d.color}"></div></div>
+      <div class="val">${d.value.toLocaleString('es-CO')}</div>
+    </div>`).join('');
+}
+
+/* ---------------- TABLE ---------------- */
+const records = [
+  {id:10542, tipo:'CC1', clase:'Pitufeo'},
+  {id:20871, tipo:'FV', clase:'Redondeo de cifras'},
+  {id:35002, tipo:'EG1', clase:'Normal'},
+  {id:41220, tipo:'NM', clase:'Fraude de nómina'},
+  {id:18760, tipo:'CC2', clase:'Normal'},
+  {id:52890, tipo:'AJ1', clase:'Registro de pasivos como ingresos'},
+  {id:63410, tipo:'CC1', clase:'Normal'},
+  {id:77120, tipo:'FV', clase:'Uso de cuentas inexistentes'},
+  {id:84550, tipo:'EG2', clase:'Normal'},
+  {id:91002, tipo:'CC1', clase:'Pitufeo'},
+  {id:10233, tipo:'NM', clase:'Normal'},
+  {id:29876, tipo:'AJ2', clase:'Redondeo de cifras'},
+].map(r=>({...r, resultado: r.clase==='Normal'?'Normal':'Alerta'}));
+
+let sortState = {key:'id', dir:1};
+let currentPage = 1;
+const pageSize = 5;
+
+function sortBy(key){
+  sortState.dir = sortState.key===key ? -sortState.dir : 1;
+  sortState.key = key;
+  renderTable();
+}
+
+function renderTable(){
+  const classFilter = document.getElementById('filterClass').value;
+  const resultFilter = document.getElementById('filterResult').value;
+  const search = document.getElementById('searchInput').value.trim();
+
+  let rows = records.filter(r=>{
+    if(classFilter!=='Todos' && r.clase!==classFilter) return false;
+    if(resultFilter!=='Todos' && r.resultado!==resultFilter) return false;
+    if(search && !String(r.id).includes(search)) return false;
+    return true;
+  });
+
+  rows.sort((a,b)=>{
+    let av=a[sortState.key], bv=b[sortState.key];
+    if(typeof av==='string') return av.localeCompare(bv)*sortState.dir;
+    return (av-bv)*sortState.dir;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(rows.length/pageSize));
+  if(currentPage>totalPages) currentPage = totalPages;
+  const pageRows = rows.slice((currentPage-1)*pageSize, currentPage*pageSize);
+
+  document.getElementById('tableBody').innerHTML = pageRows.map(r=>`
+    <tr>
+      <td>${r.id}</td>
+      <td>${r.tipo}</td>
+      <td>${r.clase}</td>
+      <td><span class="badge ${r.resultado==='Normal'?'normal':'alerta'}">${r.resultado}</span></td>
+      <td><button class="link-btn" onclick="openModal(${r.id})">Ver detalle</button></td>
+    </tr>`).join('') || `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:20px;">Sin registros que coincidan con el filtro.</td></tr>`;
+
+  document.getElementById('tableCount').textContent = `Mostrando ${pageRows.length} de ${rows.length} registros (muestra de demostración)`;
+
+  let pagerHtml = '';
+  for(let i=1;i<=totalPages;i++){
+    pagerHtml += `<button class="${i===currentPage?'active':''}" onclick="currentPage=${i}; renderTable();">${i}</button>`;
+  }
+  document.getElementById('pager').innerHTML = pagerHtml;
+}
+
+/* ---------------- MODAL ---------------- */
+const explanations = {
+  'Pitufeo':'El modelo encontró características en este registro similares a patrones previamente clasificados como Pitufeo. Se recomienda revisar el comprobante y las cuentas relacionadas.',
+  'Redondeo de cifras':'El modelo detectó montos con un patrón de redondeo poco frecuente en comparación con los registros históricos del mismo tipo de comprobante.',
+  'Fraude de nómina':'El modelo encontró irregularidades entre el código de empleado, el centro de costo y el monto neto registrado.',
+  'Registro de pasivos como ingresos':'El modelo identificó una posible reclasificación indebida entre cuentas de pasivo y de ingreso.',
+  'Uso de cuentas inexistentes':'El modelo detectó movimientos asociados a una cuenta contable que no corresponde al plan de cuentas habitual.',
+  'Normal':'El modelo no encontró características que se asemejen a los patrones de fraude previamente identificados.'
+};
+const featureSets = {
+  default:[{n:'Monto de la transacción',v:82},{n:'Frecuencia de transacciones del usuario',v:71},{n:'Diferencia de horario de registro',v:58},{n:'Desviación respecto al monto habitual',v:44},{n:'Centro de costo',v:31}]
+};
+
+function openModal(id){
+  const r = records.find(x=>x.id===id);
+  document.getElementById('mReg').textContent = r.id;
+  document.getElementById('mClass').textContent = r.clase==='Normal' ? 'Normal' : 'Posible '+r.clase;
+  document.getElementById('mResult').textContent = r.resultado==='Normal' ? 'Normal' : 'Requiere revisión';
+  document.getElementById('mExplain').textContent = explanations[r.clase] || explanations['Normal'];
+  document.getElementById('mModel').textContent = state.model || 'LightGBM';
+  document.getElementById('mFeatures').innerHTML = featureSets.default.map(f=>`
+    <div class="feat-row">
+      <div class="fname">${f.n}</div>
+      <div class="feat-track"><div class="feat-fill" style="width:${f.v}%"></div></div>
+    </div>`).join('');
+  document.getElementById('techBox').classList.remove('show');
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('show'); }
+
+/* ---------------- CONFIG ---------------- */
+function resetConfig(){
+  document.getElementById('defaultModel').value='LightGBM';
+  document.getElementById('downloadFormat').value='CSV';
+  setAppearance('light');
+  showToast('Configuración restablecida a los valores predeterminados');
+}
+</script>
+</body>
+</html>
