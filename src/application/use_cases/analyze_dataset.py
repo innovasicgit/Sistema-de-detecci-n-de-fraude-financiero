@@ -5,6 +5,7 @@ import pandas as pd
 
 from src.domain.entities.analysis import AnalysisResult
 from src.domain.ports.batch_model import BatchModelLoader
+from src.application.fraud_analysis_service import DatasetValidation, FraudAnalysisService
 
 
 @dataclass(frozen=True)
@@ -14,14 +15,21 @@ class AnalyzeDatasetInput:
 
 
 class AnalyzeDatasetUseCase:
-    def __init__(self, model_loader: BatchModelLoader) -> None:
+    def __init__(self, model_loader: BatchModelLoader, service: FraudAnalysisService | None = None) -> None:
         self._model_loader = model_loader
+        self._service = service or FraudAnalysisService()
+
+    def validate(self, dataframe: pd.DataFrame, model_name: str) -> DatasetValidation:
+        return self._service.validate_columns(dataframe, self._model_loader.load(model_name))
 
     def execute(self, request: AnalyzeDatasetInput) -> AnalysisResult:
         if request.dataframe.empty:
             raise ValueError("El archivo no contiene registros para analizar.")
 
-        model = self._model_loader.load()
+        model = self._model_loader.load(request.model_name)
+        if hasattr(model, "feature_names_in_"):
+            return self._service.analyze(dataframe=request.dataframe, model=model, model_name=request.model_name)
+
         predictions = model.predict(request.dataframe.to_dict(orient="records"))
         records = self._build_records(request.dataframe, predictions)
         normal = int((records["resultado"] == "Normal").sum())

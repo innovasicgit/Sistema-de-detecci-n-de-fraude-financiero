@@ -7,5 +7,5 @@ class BatchPredictiveModel(Protocol):
 
 
 class BatchModelLoader(Protocol):
-    def load(self) -> BatchPredictiveModel:
+    def load(self, model_name: str) -> BatchPredictiveModel:
         ...

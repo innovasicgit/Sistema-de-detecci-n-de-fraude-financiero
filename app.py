@@ -1,3 +1,5 @@
+import lightgbm
+
 from src.presentation.streamlit_app import run_app
 
 

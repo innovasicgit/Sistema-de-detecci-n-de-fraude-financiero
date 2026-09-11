@@ -20,5 +20,5 @@ class DemoBatchModel:
 
 
 class DemoBatchModelLoader:
-    def load(self) -> DemoBatchModel:
+    def load(self, model_name: str) -> DemoBatchModel:
         return DemoBatchModel()

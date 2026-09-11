@@ -1,7 +1,7 @@
 import streamlit as st
 
 from src.application.use_cases.analyze_dataset import AnalyzeDatasetUseCase
-from src.infrastructure.ml.demo_batch_model import DemoBatchModelLoader
+from src.infrastructure.ml.model_repository import ModelRepository
 from src.presentation.components import (
     load_styles,
     render_brand,
@@ -51,8 +51,8 @@ def run_app() -> None:
     if selected_page == "Inicio":
         render_home()
     elif selected_page == "Guía de uso":
-        render_guide()
+        render_guide(ModelRepository())
     elif selected_page == "Analizar archivo":
-        render_analysis(AnalyzeDatasetUseCase(DemoBatchModelLoader()))
+        render_analysis(AnalyzeDatasetUseCase(ModelRepository()))
     else:
         render_config()
