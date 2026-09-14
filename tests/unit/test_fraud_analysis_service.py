@@ -5,6 +5,8 @@ from src.application.fraud_analysis_service import FraudAnalysisService
 
 
 class FakeModel:
+    # El orden deliberadamente invertido comprueba que el servicio respeta
+    # feature_names_in_ y no el orden accidental del CSV.
     feature_names_in_ = ["segunda", "primera"]
     classes_ = [0, 1, 2]
 
@@ -20,6 +22,7 @@ class FakeModel:
 
 
 def test_service_uses_model_features_in_order_and_probability_for_predicted_class():
+    # Las columnas extra se conservan, pero no entran al modelo.
     model = FakeModel()
     dataframe = pd.DataFrame({"extra": [9, 8], "primera": [1, 2], "segunda": [3, 4]})
 
@@ -34,6 +37,7 @@ def test_service_uses_model_features_in_order_and_probability_for_predicted_clas
 
 
 def test_service_reports_missing_features():
+    # Un archivo incompleto debe detenerse antes de ejecutar inferencia.
     dataframe = pd.DataFrame({"primera": [1]})
 
     validation = FraudAnalysisService().validate_columns(dataframe, FakeModel())
@@ -44,13 +48,30 @@ def test_service_reports_missing_features():
 
 
 def test_service_rejects_empty_values_in_required_features():
+    # Los valores vacíos en variables requeridas no se convierten silenciosamente.
     dataframe = pd.DataFrame({"primera": [1], "segunda": [None]})
 
     with pytest.raises(ValueError, match="valores vacíos"):
         FraudAnalysisService().analyze(dataframe, FakeModel(), "LightGBM")
 
 
+def test_service_evaluates_predictions_against_misstate():
+    # misstate es y_true; la predicción usa solo las variables esperadas.
+    dataframe = pd.DataFrame(
+        {"segunda": [3, 4], "primera": [1, 2], "misstate": [2, 0]}
+    )
+
+    evaluation = FraudAnalysisService().evaluate(dataframe, FakeModel())
+
+    assert evaluation.total == 2
+    assert evaluation.labels == (0, 1, 2)
+    assert evaluation.report["accuracy"] == 1.0
+    assert evaluation.report["Redondeo de cifras"]["recall"] == 1.0
+    assert evaluation.confusion_matrix.tolist() == [[1, 0, 0], [0, 0, 0], [0, 0, 1]]
+
+
 def test_service_normalizes_regional_numbers_and_percentages():
+    # Se validan formatos habituales de Excel: porcentajes y coma decimal.
     dataframe = pd.DataFrame(
         {
             "Margen_Bruto_pct": ["25%"],
@@ -67,6 +88,7 @@ def test_service_normalizes_regional_numbers_and_percentages():
 
 
 def test_service_keeps_decimal_percentage_without_percent_sign():
+    # Un porcentaje ya expresado como 0.25 permanece en escala decimal.
     dataframe = pd.DataFrame({"ROA_pct": [0.25]})
 
     prepared = FraudAnalysisService._prepare_features(dataframe, ("ROA_pct",))

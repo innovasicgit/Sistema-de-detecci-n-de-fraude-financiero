@@ -6,10 +6,14 @@ import pandas as pd
 import streamlit as st
 
 from src.application.use_cases.analyze_dataset import AnalyzeDatasetInput
+from src.domain.entities.analysis import FRAUD_LABELS
 
 
 ASSETS_DIR = Path(__file__).parent / "assets"
+
+
 def load_styles(appearance: str = "Claro") -> None:
+    """Carga el CSS base y aplica las variables del tema seleccionado."""
     css = (ASSETS_DIR / "styles.css").read_text(encoding="utf-8")
     theme_css = ""
     if appearance == "Oscuro":
@@ -77,6 +81,7 @@ def render_brand() -> None:
 
 
 def render_home() -> None:
+    """Renderiza la pantalla inicial y el resumen del último análisis."""
     st.markdown(
         """
         <div class="hero-card">
@@ -101,7 +106,7 @@ def render_home() -> None:
     values = [
         ("Registros analizados", f"{analysis.total:,}" if analysis else "—"),
         ("Registros normales", f"{analysis.normal:,}" if analysis else "—"),
-        ("Alertas detectadas", f"{analysis.alerts:,}" if analysis else "—"),
+        ("Alertas detectadas (Posible fraude)", f"{analysis.alerts:,}" if analysis else "—"),
         ("Modelo utilizado", analysis.model_name if analysis else "Sin análisis"),
     ]
     for column, (label, value) in zip(metrics, values):
@@ -110,6 +115,7 @@ def render_home() -> None:
 
 
 def render_guide(model_repository: Any) -> None:
+    """Muestra instrucciones, variables del modelo y clases posibles."""
     st.title("Guía de uso")
     st.markdown('<p class="app-subtitle">Sigue estos pasos para analizar tu información contable, sin necesidad de conocimientos técnicos.</p>', unsafe_allow_html=True)
     steps = [("1", "Cargar CSV", "Sube el archivo contable en formato CSV."), ("2", "Validar información", "El sistema revisa las 19 variables requeridas."), ("3", "Ejecutar modelo", "Elige un modelo y ejecuta el análisis."), ("4", "Revisar resultados", "Consulta las clasificaciones y alertas."), ("5", "Descargar reporte", "Exporta los resultados para auditoría.")]
@@ -136,6 +142,7 @@ def render_guide(model_repository: Any) -> None:
 
 
 def render_analysis(analyze_use_case: Any) -> None:
+    """Gestiona la predicción operativa sobre un CSV sin etiqueta real."""
     st.title("Análisis de fraude contable")
     st.markdown('<p class="app-subtitle">Cargue la información contable y seleccione el modelo que desea utilizar.</p>', unsafe_allow_html=True)
     st.markdown('<div class="section-label">1. Cargar archivo</div>', unsafe_allow_html=True)
@@ -149,6 +156,8 @@ def render_analysis(analyze_use_case: Any) -> None:
                 uploaded_file.size,
                 getattr(uploaded_file, "file_id", None),
             )
+            # Solo se relee el archivo cuando cambia su firma; así los reruns no
+            # vuelven a parsear cientos de miles de filas.
             if st.session_state.get("dataframe_signature") != file_signature:
                 uploaded_file.seek(0)
                 dataframe = _read_csv(uploaded_file)
@@ -170,6 +179,8 @@ def render_analysis(analyze_use_case: Any) -> None:
     st.caption("El modelo seleccionado analizará cada registro y asignará una clasificación.")
     if dataframe is not None:
         try:
+            # Cada modelo puede declarar columnas distintas, por eso se valida
+            # después de seleccionar el modelo y antes de habilitar el botón.
             validation = analyze_use_case.validate(dataframe, model)
             if validation.is_valid:
                 st.markdown(
@@ -192,6 +203,7 @@ def render_analysis(analyze_use_case: Any) -> None:
         if dataframe is not None:
             with st.spinner("Analizando registros..."):
                 try:
+                    # La inferencia ocurre únicamente tras una acción explícita del usuario.
                     st.session_state.analysis = analyze_use_case.execute(AnalyzeDatasetInput(dataframe, model))
                 except ValueError as error:
                     st.error(str(error))
@@ -201,8 +213,96 @@ def render_analysis(analyze_use_case: Any) -> None:
     render_results()
 
 
+def render_evaluation(analyze_use_case: Any) -> None:
+    """Evalúa un modelo contra misstate y muestra reporte y matriz de confusión."""
+    st.title("Evaluar modelo")
+    st.markdown(
+        '<p class="app-subtitle">Compare las predicciones con la etiqueta real del CSV.</p>',
+        unsafe_allow_html=True,
+    )
+    st.info("Esta evaluación requiere una columna 'misstate' con valores de 0 a 5.")
+    uploaded_file = st.file_uploader(
+        "Cargue un CSV etiquetado", type=["csv"], key="evaluation_uploader"
+    )
+    model_name = st.selectbox(
+        "Modelo a evaluar",
+        ["LightGBM", "Random Forest", "XGBoost", "Decision Tree"],
+        key="evaluation_model",
+    )
+    if uploaded_file is None:
+        return
+
+    try:
+        signature = (uploaded_file.name, uploaded_file.size, getattr(uploaded_file, "file_id", None))
+        if st.session_state.get("evaluation_signature") != signature:
+            uploaded_file.seek(0)
+            st.session_state.evaluation_dataframe = _read_csv(uploaded_file)
+            st.session_state.evaluation_signature = signature
+            st.session_state.evaluation_result = None
+        dataframe = cast(pd.DataFrame, st.session_state.get("evaluation_dataframe"))
+        if "misstate" not in dataframe.columns:
+            st.error("El CSV no contiene la columna 'misstate'. No es posible calcular métricas reales.")
+            return
+        st.markdown(
+            f'<div class="status-ok">Archivo etiquetado · {len(dataframe):,} registros · columna misstate encontrada</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Evaluar modelo", type="primary", key="run_evaluation"):
+            with st.spinner("Calculando métricas y matriz de confusión..."):
+                try:
+                    # La evaluación se ejecuta al pulsar el botón y se conserva en session_state.
+                    st.session_state.evaluation_result = analyze_use_case.evaluate(dataframe, model_name)
+                except ValueError as error:
+                    st.error(str(error))
+        evaluation = st.session_state.get("evaluation_result")
+        if evaluation is None:
+            return
+
+        st.subheader(f"Evaluación de {model_name}")
+        evaluation_metrics = st.columns(2)
+        evaluation_metrics[0].metric("Accuracy", f"{evaluation.report['accuracy']:.2%}")
+        evaluation_metrics[1].metric(
+            "F1 macro", f"{evaluation.report['macro avg']['f1-score']:.2%}"
+        )
+        # Se transforma el diccionario de sklearn en una tabla legible para la interfaz.
+        report_rows = []
+        for label in evaluation.labels:
+            name = FRAUD_LABELS.get(label, str(label))
+            values = evaluation.report[name]
+            report_rows.append({
+                "Clase": name,
+                "Precision": values["precision"],
+                "Recall": values["recall"],
+                "F1-score": values["f1-score"],
+                "Soporte": int(values["support"]),
+            })
+        for average in ("macro avg", "weighted avg"):
+            values = evaluation.report[average]
+            report_rows.append({
+                "Clase": "Promedio macro" if average == "macro avg" else "Promedio ponderado",
+                "Precision": values["precision"],
+                "Recall": values["recall"],
+                "F1-score": values["f1-score"],
+                "Soporte": int(values["support"]),
+            })
+        report_frame = pd.DataFrame(report_rows)
+        for column in ("Precision", "Recall", "F1-score"):
+            report_frame[column] = report_frame[column].map(lambda value: f"{value:.4f}")
+        st.dataframe(report_frame, use_container_width=True, hide_index=True)
+
+        st.markdown("### Matriz de confusión")
+        labels = [FRAUD_LABELS.get(label, str(label)) for label in evaluation.labels]
+        # Las filas son clases reales y las columnas son clases predichas.
+        confusion = pd.DataFrame(evaluation.confusion_matrix, index=labels, columns=labels)
+        confusion.index.name = "Real \\ Predicha"
+        st.dataframe(confusion, use_container_width=True)
+    except Exception as error:
+        st.error(f"No fue posible leer el CSV de evaluación: {error}")
+
+
 def _read_csv(uploaded_file: Any) -> pd.DataFrame:
     """Lee CSV regionales con el motor C, evitando el parser Python completo."""
+    # Se inspeccionan solo 64 KB para detectar el separador; pandas procesa el resto.
     sample = uploaded_file.read(64 * 1024)
     uploaded_file.seek(0)
     if isinstance(sample, bytes):
@@ -215,6 +315,7 @@ def _read_csv(uploaded_file: Any) -> pd.DataFrame:
 
 
 def render_results() -> None:
+    """Presenta métricas, distribución, filtros, detalle y descarga del análisis."""
     analysis = st.session_state.get("analysis")
     if analysis is None:
         return
@@ -238,6 +339,7 @@ def render_results() -> None:
             )
 
     st.markdown('<div class="results-panel"><h3>Distribución de las clasificaciones</h3>', unsafe_allow_html=True)
+    # Se mantiene un orden fijo de clases, incluso cuando alguna tiene cero registros.
     distribution = analysis.records["clasificacion"].value_counts()
     ordered_classes = [
         "Normal", "Pitufeo", "Redondeo de cifras", "Fraude de nómina",
@@ -269,6 +371,7 @@ def render_results() -> None:
         "Buscar registro", placeholder="Número de registro o comprobante", key="results_search"
     )
 
+    # Los filtros afectan solo la vista y no destruyen el resultado completo descargable.
     filtered = analysis.records.copy()
     if class_filter != "Todos":
         filtered = filtered[filtered["clasificacion"] == class_filter]
@@ -280,6 +383,7 @@ def render_results() -> None:
             filtered.astype(str).apply(lambda row: row.str.lower().str.contains(term).any(), axis=1)
         ]
 
+    # La paginación evita enviar miles de filas al navegador en un solo render.
     page_size = 5
     total_pages = max((len(filtered) + page_size - 1) // page_size, 1)
     page_key = "results_page"

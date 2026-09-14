@@ -23,13 +23,26 @@ El flujo batch actual usa `AnalyzeDatasetUseCase` para transformar un `DataFrame
 ## Ejecutar
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
+py -3.10 -m venv .venv310
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv310\Scripts\Activate.ps1
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-El flujo actual usa `DemoModelLoader` como sustituto. Para conectar un modelo real, implementa `ModelLoader` en `src/infrastructure/ml/` y cambia la composición en `src/presentation/streamlit_app.py`.
+Si PowerShell bloquea la ejecución de scripts, puedes ejecutar la aplicación sin activar el entorno:
+
+```powershell
+.\.venv310\Scripts\python.exe -m streamlit run app.py
+```
+
+Para ejecutar las pruebas sin activar el entorno:
+
+```powershell
+.\.venv310\Scripts\python.exe -m pytest
+```
+
+El proyecto utiliza los modelos entrenados almacenados en `src/models/`. Si los modelos se descargan mediante Git LFS, ejecuta `git lfs pull` después de clonar el repositorio.
 
 ## Pruebas
 
